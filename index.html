@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Candidate Device Tracker</title>
+    <title>Advanced Exam Analytics</title>
     
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -15,14 +15,12 @@
             flex-direction: column; align-items: center; padding: 40px 20px;
         }
 
-        /* 🟢 Claymorphism Box 🟢 */
         .glass-box { 
             background: #1a1a22; border-radius: 25px; padding: 30px; text-align: center; 
-            width: 100%; max-width: 800px; margin-top: 20px;
+            width: 100%; max-width: 900px; margin-top: 20px;
             box-shadow: 12px 12px 24px rgba(0,0,0,0.6), -8px -8px 20px rgba(255,255,255,0.03), inset 4px 4px 10px rgba(255,255,255,0.05), inset -8px -8px 18px rgba(0,0,0,0.4);
         }
 
-        /* Buttons & Inputs */
         .btn { 
             padding: 12px 24px; border-radius: 12px; font-size: 15px; font-weight: bold; border: none; cursor: pointer; transition: 0.2s;
             background: #00bcd4; color: #000; box-shadow: 4px 4px 10px rgba(0,188,212,0.3), inset 2px 2px 4px rgba(255,255,255,0.4);
@@ -35,16 +33,16 @@
             box-shadow: inset 5px 5px 10px rgba(0,0,0,0.7), inset -2px -2px 5px rgba(255,255,255,0.02); cursor: pointer;
         }
 
-        /* Table */
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 10px rgba(0,0,0,0.5); }
+        /* 🟢 6-Column Table 🟢 */
+        .table-container { width: 100%; overflow-x: auto; }
+        table { width: 100%; min-width: 700px; border-collapse: collapse; margin-top: 10px; border-radius: 12px; overflow: hidden; box-shadow: 4px 4px 10px rgba(0,0,0,0.5); }
         th, td { padding: 12px; text-align: center; border-bottom: 1px solid #2a2a35; }
-        th { background-color: #00bcd4; color: #000; font-weight: bold; text-transform: uppercase; font-size: 13px; }
+        th { background-color: #00bcd4; color: #000; font-weight: bold; text-transform: uppercase; font-size: 12px; letter-spacing: 1px;}
         tr:nth-child(even) { background-color: #202028; }
         tr:nth-child(odd) { background-color: #1a1a22; }
         
-        .device-badge { background: #2c2c38; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5); }
+        .device-badge { background: #2c2c38; padding: 6px 10px; border-radius: 8px; font-size: 12px; font-weight: bold; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5); white-space: nowrap;}
 
-        /* SweetAlert Custom Theme */
         .swal2-popup { background: #1a1a22 !important; border-radius: 20px !important; color: #fff !important; }
         .swal2-title { color: #ff5252 !important; }
         .swal2-confirm { background: #00bcd4 !important; color: #000 !important; font-weight: bold !important; border-radius: 10px !important; }
@@ -54,36 +52,38 @@
 
     <div id="loginSection" class="glass-box" style="max-width: 400px; margin-top: 100px;">
         <h2 style="color: #ff5252; margin-bottom: 10px;">🔒 Admin Access</h2>
-        <p style="color: #888; font-size: 14px; margin-bottom: 25px;">Only authorized admin can view this page.</p>
+        <p style="color: #888; font-size: 14px; margin-bottom: 25px;">Only authorized admin can view advanced analytics.</p>
         <button id="loginBtn" class="btn">Sign in with Google</button>
     </div>
 
     <div id="dashboardSection" style="display: none; width: 100%; flex-direction: column; align-items: center;">
         
-        <div style="width: 100%; max-width: 800px; display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <h2 style="color: #00bcd4;">Device Tracker</h2>
+        <div style="width: 100%; max-width: 900px; display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center;">
+            <h2 style="color: #00bcd4;">Advanced Analytics Data</h2>
             <button id="logoutBtn" class="btn btn-danger" style="padding: 8px 16px; font-size: 13px;">Logout</button>
         </div>
 
         <div class="glass-box" style="margin-top: 0;">
-            <p style="color: #a0a0b0; font-size: 14px; margin-bottom: 20px;">Select an exam to check candidates' devices.</p>
+            <p style="color: #a0a0b0; font-size: 14px; margin-bottom: 20px;">Select an exam to view deep analytics (Cheat count, time taken, device info).</p>
             
             <select id="examSelector">
                 <option value="">-- Loading Exams... --</option>
             </select>
 
-            <div style="overflow-x: auto;">
+            <div class="table-container">
                 <table>
                     <thead>
                         <tr>
                             <th>#</th>
                             <th>Roll / Name</th>
                             <th>Score</th>
-                            <th>Device Used</th>
+                            <th>Browser & OS</th>
+                            <th>Time Taken</th>
+                            <th>Warnings ⚠️</th>
                         </tr>
                     </thead>
                     <tbody id="dataTableBody">
-                        <tr><td colspan="4" style="color: #888;">Select an exam to view data</td></tr>
+                        <tr><td colspan="6" style="color: #888;">Select an exam to view data</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -108,109 +108,96 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({ prompt: 'select_account' }); // Forces account selection
+        provider.setCustomParameters({ prompt: 'select_account' });
         const db = getFirestore(app);
 
-        // UI Elements
         const loginSection = document.getElementById('loginSection');
         const dashboardSection = document.getElementById('dashboardSection');
         const examSelector = document.getElementById('examSelector');
         const tableBody = document.getElementById('dataTableBody');
 
-        // 🟢 ADMIN EMAIL 🟢
         const ADMIN_EMAIL = "mcqportal198@gmail.com";
 
-        // Check Auth State
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 if (user.email.toLowerCase() === ADMIN_EMAIL) {
-                    // Success! Show dashboard
                     loginSection.style.display = "none";
                     dashboardSection.style.display = "flex";
                     loadExams(); 
                 } else {
-                    // Wrong email -> Show Error & Logout
                     Swal.fire({
                         icon: 'error',
                         title: 'Access Denied!',
                         text: `The email ${user.email} is not authorized.`,
                         confirmButtonText: 'OK'
-                    }).then(() => {
-                        signOut(auth);
-                    });
+                    }).then(() => { signOut(auth); });
                 }
             } else {
-                // Not logged in
                 loginSection.style.display = "block";
                 dashboardSection.style.display = "none";
             }
         });
 
-        // Login Click
         document.getElementById('loginBtn').addEventListener('click', async () => {
-            try {
-                await signInWithPopup(auth, provider);
-            } catch (error) {
-                Swal.fire({ icon: 'error', title: 'Error', text: error.message });
-            }
+            try { await signInWithPopup(auth, provider); } 
+            catch (error) { Swal.fire({ icon: 'error', title: 'Error', text: error.message }); }
         });
 
-        // Logout Click
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            signOut(auth);
-        });
+        document.getElementById('logoutBtn').addEventListener('click', () => { signOut(auth); });
 
-        // Load Exams
         async function loadExams() {
             try {
                 const q = query(collection(db, "exams"), orderBy("createdAt", "desc"));
                 const snapshot = await getDocs(q);
                 examSelector.innerHTML = '<option value="">-- Select Exam --</option>';
-                snapshot.forEach(doc => {
-                    examSelector.innerHTML += `<option value="${doc.id}">${doc.data().title}</option>`;
-                });
-            } catch (error) {
-                console.error("Error loading exams:", error);
-            }
+                snapshot.forEach(doc => { examSelector.innerHTML += `<option value="${doc.id}">${doc.data().title}</option>`; });
+            } catch (error) { console.error("Error loading exams:", error); }
         }
 
-        // Fetch Data on Selection
         examSelector.addEventListener('change', async (e) => {
             const examId = e.target.value;
             if(!examId) {
-                tableBody.innerHTML = '<tr><td colspan="4" style="color: #888;">Select an exam to view data</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" style="color: #888;">Select an exam to view data</td></tr>';
                 return;
             }
 
-            tableBody.innerHTML = '<tr><td colspan="4" style="color: #00bcd4;">Loading data...</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="6" style="color: #00bcd4;">Loading advanced data...</td></tr>';
 
             try {
                 const q = query(collection(db, "results"), where("examId", "==", examId));
                 const snapshot = await getDocs(q);
                 
                 if (snapshot.empty) {
-                    tableBody.innerHTML = '<tr><td colspan="4" style="color: #ffb74d;">No submissions yet.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="6" style="color: #ffb74d;">No submissions yet.</td></tr>';
                     return;
                 }
 
                 let submissions = [];
                 snapshot.forEach(doc => submissions.push(doc.data()));
-                submissions.sort((a, b) => b.score - a.score); // Highest score first
+                submissions.sort((a, b) => b.score - a.score); 
 
                 tableBody.innerHTML = "";
                 submissions.forEach((sub, index) => {
-                    const deviceName = sub.device ? sub.device : "Unknown ❓";
+                    const deviceDisplay = sub.device || "Unknown ❓";
+                    const timeDisplay = sub.timeTaken || "N/A ⏱";
+                    const cheatCount = (sub.cheatCount !== undefined) ? sub.cheatCount : 0;
+                    
+                    // Highlight Cheaters
+                    const cheatBadge = cheatCount > 0 ? `<span style="color:#ff5252; font-weight:bold;">${cheatCount} Switches</span>` : `<span style="color:#00e676;">Clean</span>`;
+
                     tableBody.innerHTML += `
                         <tr>
                             <td>${index + 1}</td>
                             <td style="font-weight:bold; color: #fff;">${sub.rollNumber || "N/A"}</td>
-                            <td style="color:#00e676; font-weight:bold;">${sub.score}</td>
-                            <td><span class="device-badge">${deviceName}</span></td>
+                            <td style="color:#00e676; font-weight:bold; font-size:16px;">${sub.score}</td>
+                            <td><span class="device-badge">${deviceDisplay}</span></td>
+                            <td style="color:#ffb74d; font-weight:bold; font-size: 13px;">${timeDisplay}</td>
+                            <td>${cheatBadge}</td>
                         </tr>
                     `;
                 });
             } catch (error) {
-                tableBody.innerHTML = '<tr><td colspan="4" style="color: #ff5252;">Error fetching data.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" style="color: #ff5252;">Error fetching data.</td></tr>';
             }
         });
     </script>
