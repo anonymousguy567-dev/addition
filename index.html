@@ -68,7 +68,15 @@
             border: 1px solid rgba(255,255,255,0.02); transition: 0.4s;
         }
         
-        #passGroup { display: none; } /* Hidden initially for logic */
+        .auth-tabs { display: flex; gap: 10px; margin-bottom: 25px; }
+        .auth-tab { 
+            flex: 1; padding: 12px; text-align: center; background: #15151a; border-radius: 12px; 
+            cursor: pointer; font-weight: bold; color: #a0a0b0; transition: 0.3s; border: 1px solid rgba(255,255,255,0.02); 
+        }
+        .auth-tab.active { background: #00bcd4; color: #000; box-shadow: 0 4px 15px rgba(0,188,212,0.3); border: none; }
+        
+        .auth-form { display: none; flex-direction: column; animation: fadeIn 0.4s ease;}
+        .auth-form.active { display: flex; }
 
         /* 🟢 Layout: SaaS Sidebar Dashboard 🟢 */
         #adminDashboardLayout { display: none; height: calc(100vh - 65px); width: 100%; overflow: hidden; }
@@ -176,6 +184,9 @@
         body.light-mode .nav-item:hover { background: rgba(102, 76, 40, 0.05); color: #222; }
         body.light-mode .nav-item.active { background: #F0EBE1; color: #008394; box-shadow: inset 4px 4px 8px rgba(102, 76, 40, 0.15), inset -2px -2px 5px #ffffff; border-color: rgba(0, 131, 148, 0.2); }
         
+        body.light-mode .auth-tab { background: #F0EBE1; color: #666; border-color: rgba(102, 76, 40, 0.1); }
+        body.light-mode .auth-tab.active { background: #008394; color: #fff; }
+        
         body.light-mode input, body.light-mode textarea, body.light-mode select { background: #F0EBE1; color: #333; border: 1px solid rgba(102, 76, 40, 0.1); box-shadow: inset 4px 4px 8px rgba(102, 76, 40, 0.15), inset -2px -2px 5px #ffffff; }
         body.light-mode input:focus, body.light-mode textarea:focus, body.light-mode select:focus { box-shadow: inset 6px 6px 12px rgba(102, 76, 40, 0.2); border-color: #E1A95F;}
         body.light-mode select option { background: #F0EBE1; color: #333; }
@@ -228,21 +239,37 @@
     <div id="loginSection">
         <div class="login-clay-box">
             <h1 style="color: #ff5252; margin-bottom: 10px; font-size: 28px;">Admin Login</h1>
-            <p id="loginHelperText" style="color:#b3b3b3; font-size:14px; margin-bottom:30px;">Enter your admin email to verify access.</p>
+            <p style="color:#b3b3b3; font-size:14px; margin-bottom:25px;">Only authorized personnel can access this panel.</p>
             
-            <form id="adminLoginForm">
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tabSignIn">Sign In</div>
+                <div class="auth-tab" id="tabSignUp">Sign Up</div>
+            </div>
+
+            <form class="auth-form active" id="adminSignInForm">
                 <div class="input-group" style="text-align: left;">
                     <label>Admin Email</label>
-                    <input type="email" id="adminEmail" required placeholder="admin@example.com" autocomplete="username">
+                    <input type="email" id="signInEmail" required placeholder="admin@example.com" autocomplete="username">
                 </div>
-                
-                <div class="input-group" id="passGroup" style="text-align: left; margin-bottom: 30px;">
-                    <label id="passLabel">Password</label>
-                    <input type="password" id="adminPass" placeholder="••••••••" autocomplete="current-password">
+                <div class="input-group" style="text-align: left; margin-bottom: 20px;">
+                    <label>Password</label>
+                    <input type="password" id="signInPass" required placeholder="••••••••" autocomplete="current-password">
                 </div>
-                
-                <button type="submit" id="adminLoginBtn" class="login-btn">Verify Email</button>
+                <button type="submit" id="btnSignIn" class="login-btn">Login to Command Center</button>
             </form>
+
+            <form class="auth-form" id="adminSignUpForm">
+                <div class="input-group" style="text-align: left;">
+                    <label>Authorized Email</label>
+                    <input type="email" id="signUpEmail" required placeholder="admin@example.com" autocomplete="username">
+                </div>
+                <div class="input-group" style="text-align: left; margin-bottom: 20px;">
+                    <label>Set New Password</label>
+                    <input type="password" id="signUpPass" required placeholder="Min 6 characters" autocomplete="new-password">
+                </div>
+                <button type="submit" id="btnSignUp" class="login-btn" style="background:#00e676;">Create Admin Account</button>
+            </form>
+
         </div>
     </div>
 
@@ -383,7 +410,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
         // 🟢 IMPORT EMAIL/PASSWORD AUTH 🟢
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, fetchSignInMethodsForEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, orderBy, query, doc, getDoc, updateDoc, deleteDoc, setDoc, where } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-firestore.js";
 
         // Theme Init
@@ -428,8 +455,21 @@
         closeResultModal.addEventListener('click', () => resultModal.classList.remove('show')); closeHistoryModal.addEventListener('click', () => historyModal.classList.remove('show')); closeEditQModal.addEventListener('click', () => editQModal.classList.remove('show')); 
         window.addEventListener('click', (e) => { if(e.target === resultModal) resultModal.classList.remove('show'); if(e.target === historyModal) historyModal.classList.remove('show'); if(e.target === editQModal) editQModal.classList.remove('show'); });
 
-        // 🟢 DYNAMIC ADMIN AUTHENTICATION LOGIC 🟢
-        let loginMode = "email"; // States: "email", "login", "signup"
+        // 🟢 AUTHENTICATION TABS LOGIC 🟢
+        const tabSignIn = document.getElementById('tabSignIn');
+        const tabSignUp = document.getElementById('tabSignUp');
+        const adminSignInForm = document.getElementById('adminSignInForm');
+        const adminSignUpForm = document.getElementById('adminSignUpForm');
+
+        tabSignIn.addEventListener('click', () => {
+            tabSignIn.classList.add('active'); tabSignUp.classList.remove('active');
+            adminSignInForm.classList.add('active'); adminSignUpForm.classList.remove('active');
+        });
+
+        tabSignUp.addEventListener('click', () => {
+            tabSignUp.classList.add('active'); tabSignIn.classList.remove('active');
+            adminSignUpForm.classList.add('active'); adminSignInForm.classList.remove('active');
+        });
 
         onAuthStateChanged(auth, (user) => { 
             if (user) { 
@@ -447,87 +487,63 @@
                 adminDashboardLayout.style.display = "none"; 
                 adminNavbar.style.display = "none";
                 
-                // Reset form state
-                loginMode = "email";
-                document.getElementById('passGroup').style.display = "none";
-                document.getElementById('adminEmail').readOnly = false;
-                document.getElementById('adminLoginBtn').innerText = "Verify Email";
-                document.getElementById('loginHelperText').innerText = "Enter your admin email to verify access.";
+                document.getElementById('adminSignInForm').reset();
+                document.getElementById('adminSignUpForm').reset();
+                document.getElementById('btnSignIn').innerText = "Login to Command Center";
+                document.getElementById('btnSignUp').innerText = "Create Admin Account";
             } 
         });
 
-        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+        // 🟢 Sign In Handler 🟢
+        adminSignInForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const emailInput = document.getElementById('adminEmail');
-            const passInput = document.getElementById('adminPass');
-            const email = emailInput.value.trim();
-            const password = passInput.value;
-            const btn = document.getElementById('adminLoginBtn');
-            const helperText = document.getElementById('loginHelperText');
-            const passLabel = document.getElementById('passLabel');
+            const email = document.getElementById('signInEmail').value.trim();
+            const password = document.getElementById('signInPass').value;
+            const btn = document.getElementById('btnSignIn');
 
-            if (loginMode === "email") {
-                if (!ADMIN_EMAILS.includes(email)) {
-                    Swal.fire({ icon: 'error', title: 'Unauthorized', text: 'This email is not authorized for Admin Panel.', background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
-                    return;
-                }
-
-                btn.innerText = "Checking...";
-                btn.disabled = true;
-
-                try {
-                    // Check if user already exists
-                    const methods = await fetchSignInMethodsForEmail(auth, email);
-                    
-                    document.getElementById('passGroup').style.display = "block";
-                    emailInput.readOnly = true; // Lock email input
-                    passInput.setAttribute("required", "true");
-                    
-                    if (methods.length > 0) {
-                        // User exists, show normal login
-                        loginMode = "login";
-                        helperText.innerText = "Email verified. Enter your password.";
-                        passLabel.innerText = "Password";
-                        btn.innerText = "Login to Command Center";
-                    } else {
-                        // User does NOT exist, show password creation
-                        loginMode = "signup";
-                        helperText.innerText = "Welcome new admin! Please set a secure password.";
-                        passLabel.innerText = "Create New Password";
-                        btn.innerText = "Set Password & Login";
-                        passInput.focus();
-                    }
-                } catch (error) {
-                    Swal.fire('Error', 'Network error. Please try again.', 'error');
-                }
-                btn.disabled = false;
+            if (!ADMIN_EMAILS.includes(email)) {
+                Swal.fire({ icon: 'error', title: 'Unauthorized', text: 'This email is not authorized for Admin access.', background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
                 return;
             }
 
-            // If we are here, we are either in "login" or "signup" mode
-            btn.innerText = "Authenticating...";
-            btn.disabled = true;
+            btn.innerText = "Authenticating..."; btn.disabled = true;
 
             try {
-                if (loginMode === "signup") {
-                    if (password.length < 6) {
-                        Swal.fire({ icon: 'warning', title: 'Too short', text: 'Password must be at least 6 characters.', background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
-                        btn.innerText = "Set Password & Login";
-                        btn.disabled = false;
-                        return;
-                    }
-                    await createUserWithEmailAndPassword(auth, email, password);
-                    // Login happens automatically after creation
-                } else if (loginMode === "login") {
-                    await signInWithEmailAndPassword(auth, email, password);
-                }
+                await signInWithEmailAndPassword(auth, email, password);
             } catch (error) {
-                let msg = "Invalid password.";
+                let msg = "Invalid email or password.";
                 if(error.code === "auth/too-many-requests") msg = "Too many failed attempts. Try again later.";
-                
                 Swal.fire({ icon: 'error', title: 'Login Failed', text: msg, background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
-                btn.innerText = loginMode === "login" ? "Login to Command Center" : "Set Password & Login";
-                btn.disabled = false;
+                btn.innerText = "Login to Command Center"; btn.disabled = false;
+            }
+        });
+
+        // 🟢 Sign Up Handler 🟢
+        adminSignUpForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('signUpEmail').value.trim();
+            const password = document.getElementById('signUpPass').value;
+            const btn = document.getElementById('btnSignUp');
+
+            if (!ADMIN_EMAILS.includes(email)) {
+                Swal.fire({ icon: 'error', title: 'Unauthorized', text: 'This email is not authorized to create an Admin account.', background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
+                return;
+            }
+
+            if (password.length < 6) {
+                Swal.fire({ icon: 'warning', title: 'Too short', text: 'Password must be at least 6 characters.', background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
+                return;
+            }
+
+            btn.innerText = "Creating..."; btn.disabled = true;
+
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                let msg = "Failed to create account.";
+                if(error.code === 'auth/email-already-in-use') msg = "Email already registered. Please use the Sign In tab.";
+                Swal.fire({ icon: 'error', title: 'Error', text: msg, background: document.body.classList.contains('light-mode') ? '#FDFCF9' : '#1e1e26', color: document.body.classList.contains('light-mode') ? '#222' : '#fff' });
+                btn.innerText = "Create Admin Account"; btn.disabled = false;
             }
         });
 
